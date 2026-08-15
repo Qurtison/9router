@@ -62,6 +62,44 @@ describe("toOpenAIUsage", () => {
     expect(u.total_tokens).toBe(99);
   });
 
+  it("commandcode: passes through cache read/write + reasoning (AI SDK v5 finish event)", () => {
+    const u = toOpenAIUsage(
+      {
+        inputTokens: 27650,
+        outputTokens: 10,
+        inputTokenDetails: { noCacheTokens: 2, cacheReadTokens: 27648, cacheWriteTokens: 0 },
+        outputTokenDetails: { reasoningTokens: 0 },
+        totalTokens: 27660,
+      },
+      "commandcode"
+    );
+    expect(u.prompt_tokens).toBe(27650);
+    expect(u.completion_tokens).toBe(10);
+    expect(u.total_tokens).toBe(27660);
+    expect(u.prompt_tokens_details.cached_tokens).toBe(27648);
+  });
+
+  it("commandcode: passes through cachedInputTokens top-level + reasoningTokens", () => {
+    const u = toOpenAIUsage(
+      {
+        inputTokens: 27650,
+        outputTokens: 10,
+        cachedInputTokens: 27648,
+        reasoningTokens: 4,
+        totalTokens: 27660,
+      },
+      "commandcode"
+    );
+    expect(u.prompt_tokens_details.cached_tokens).toBe(27648);
+    expect(u.completion_tokens_details.reasoning_tokens).toBe(4);
+  });
+
+  it("commandcode: no cache/reasoning -> no details objects", () => {
+    const u = toOpenAIUsage({ inputTokens: 8, outputTokens: 2, totalTokens: 10 }, "commandcode");
+    expect(u.prompt_tokens_details).toBeUndefined();
+    expect(u.completion_tokens_details).toBeUndefined();
+  });
+
   it("unknown kind / null raw -> null", () => {
     expect(toOpenAIUsage({}, "nope")).toBeNull();
     expect(toOpenAIUsage(null, "claude")).toBeNull();
