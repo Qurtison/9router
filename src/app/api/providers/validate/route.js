@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getProviderNodeById } from "@/models";
 import { isOpenAICompatibleProvider, isAnthropicCompatibleProvider, isCustomEmbeddingProvider, AI_PROVIDERS } from "@/shared/constants/providers";
 import { getDefaultModel } from "open-sse/config/providerModels.js";
-import { resolveOllamaLocalHost, resolveXiaomiTokenplanBaseUrl, PROVIDERS } from "open-sse/config/providers.js";
+import { resolveOllamaLocalHost, resolveLlamaCppHost, resolveXiaomiTokenplanBaseUrl, PROVIDERS } from "open-sse/config/providers.js";
 import { openaiToCommandCodeRequest } from "open-sse/translator/request/openai-to-commandcode.js";
 import { resolveQoderCredentials, resolveQoderModels } from "open-sse/services/qoderModels.js";
 import { normalizeProviderId } from "@/lib/providerNormalization";
@@ -592,6 +592,21 @@ export async function POST(request) {
           } catch (err) {
             isValid = false;
             error = err.message;
+          }
+          break;
+        }
+
+        case "llamacpp": {
+          const host = resolveLlamaCppHost({ providerSpecificData });
+          try {
+            const res = await fetch(`${host}/v1/models`, { signal: AbortSignal.timeout(8000) });
+            isValid = res.ok;
+            if (!isValid && res.status !== 401 && res.status !== 403) {
+              error = `llama.cpp not reachable at ${host}`;
+            }
+          } catch (err) {
+            isValid = false;
+            error = `llama.cpp not reachable at ${host}: ${err.message}`;
           }
           break;
         }

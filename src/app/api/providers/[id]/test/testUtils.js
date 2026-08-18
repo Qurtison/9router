@@ -3,7 +3,7 @@ import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { testProxyUrl } from "@/lib/network/proxyTest";
 import { isOpenAICompatibleProvider, isAnthropicCompatibleProvider } from "@/shared/constants/providers";
 import { getDefaultModel } from "open-sse/config/providerModels.js";
-import { resolveOllamaLocalHost, PROVIDERS } from "open-sse/config/providers.js";
+import { resolveOllamaLocalHost, resolveLlamaCppHost, PROVIDERS } from "open-sse/config/providers.js";
 import {
   refreshProviderCredentials,
   shouldRefreshCredentials,
@@ -689,6 +689,11 @@ async function testApiKeyConnection(connection, effectiveProxy = null) {
         const host = resolveOllamaLocalHost(connection);
         const res = await fetch(`${host}/api/tags`);
         return { valid: res.ok, error: res.ok ? null : `Ollama not reachable at ${host}` };
+      }
+      case "llamacpp": {
+        const host = resolveLlamaCppHost(connection);
+        const res = await fetch(`${host}/v1/models`);
+        return { valid: res.ok, error: res.ok ? null : `llama.cpp not reachable at ${host}` };
       }
       case "deepgram": {
         const res = await fetchWithConnectionProxy("https://api.deepgram.com/v1/projects", { headers: { Authorization: `Token ${connection.apiKey}` } }, effectiveProxy);

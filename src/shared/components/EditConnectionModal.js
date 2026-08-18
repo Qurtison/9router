@@ -23,6 +23,7 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
   });
   const [cloudflareData, setCloudflareData] = useState({ accountId: "" });
   const [region, setRegion] = useState("");
+  const [localServerUrl, setLocalServerUrl] = useState("");
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [validating, setValidating] = useState(false);
@@ -54,6 +55,10 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
         const savedRegion = connection.providerSpecificData?.region || providerCfg.defaultRegion || providerCfg.regions[0]?.id || "";
         setRegion(savedRegion);
       }
+      // Load base URL for local servers (ollama-local / llamacpp)
+      if (connection.provider === "ollama-local" || connection.provider === "llamacpp") {
+        setLocalServerUrl(connection.providerSpecificData?.baseUrl || "");
+      }
       setTestResult(null);
       setValidationResult(null);
     }
@@ -62,6 +67,7 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
   const isOAuth = connection?.authType === "oauth";
   const isAzure = connection?.provider === "azure";
   const isCloudflareAi = connection?.provider === "cloudflare-ai";
+  const isLocalServer = connection?.provider === "ollama-local" || connection?.provider === "llamacpp";
   const isCompatible = connection
     ? (isOpenAICompatibleProvider(connection.provider) || isAnthropicCompatibleProvider(connection.provider))
     : false;
@@ -89,7 +95,8 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
   };
 
   const handleValidate = async () => {
-    if (!connection?.provider || !formData.apiKey) return;
+    if (!connection?.provider) return;
+    if (!isLocalServer && !formData.apiKey) return;
     setValidating(true);
     setValidationResult(null);
     try {
@@ -101,6 +108,7 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
           apiKey: formData.apiKey,
           ...(isAzure ? { providerSpecificData: azureData } : {}),
           ...(isCloudflareAi ? { providerSpecificData: cloudflareData } : {}),
+          ...(isLocalServer && localServerUrl.trim() ? { providerSpecificData: { baseUrl: localServerUrl.trim() } } : {}),
           ...(providerRegions ? { providerSpecificData: buildRegionSpecificData() } : {}),
         }),
       });
@@ -136,6 +144,7 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
                 apiKey: formData.apiKey,
                 ...(isAzure ? { providerSpecificData: azureData } : {}),
                 ...(isCloudflareAi ? { providerSpecificData: cloudflareData } : {}),
+                ...(isLocalServer && localServerUrl.trim() ? { providerSpecificData: { baseUrl: localServerUrl.trim() } } : {}),
                 ...(providerRegions ? { providerSpecificData: buildRegionSpecificData() } : {}),
               }),
             });
@@ -166,6 +175,12 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
       }
       if (isCloudflareAi) {
         updates.providerSpecificData = { accountId: cloudflareData.accountId };
+      }
+      if (isLocalServer && localServerUrl.trim()) {
+        updates.providerSpecificData = {
+          ...(connection.providerSpecificData || {}),
+          baseUrl: localServerUrl.trim(),
+        };
       }
       // Persist updated region for region-aware providers
       if (providerRegions && region) {
@@ -262,6 +277,16 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
               />
             </div>
           </div>
+        )}
+
+        {isLocalServer && (
+          <Input
+            label={connection.provider === "llamacpp" ? "llama.cpp Server URL" : "Ollama Host URL"}
+            value={localServerUrl}
+            onChange={(e) => setLocalServerUrl(e.target.value)}
+            placeholder={connection.provider === "llamacpp" ? "http://10.0.0.69:18083" : "http://localhost:11434"}
+            hint="Leave blank to use the default server. Test the connection from the button below."
+          />
         )}
 
         {providerRegions && (
